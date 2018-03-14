@@ -1,5 +1,5 @@
 language: csharp
-solution: IoTHubGateway.sln
+solution: ./src/IoTHubGateway.sln
 dotnet: 2.0.0
 mono: none
 
@@ -8,4 +8,4 @@ install:
 
 script:
  - dotnet build
- - dotnet test Tests/IoTHubGateway.Server.Tests/IoTHubGateway.Server.Tests.csproj
+ - dotnet test ./src/Tests/IoTHubGateway.Server.Tests/IoTHubGateway.Server.Tests.csproj
