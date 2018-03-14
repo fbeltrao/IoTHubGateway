@@ -18,19 +18,25 @@ namespace IoTHubGateway.Server
         public string IoTHubHostName { get; set; }
 
         /// <summary>
-        /// The access policy name. A common value is iothubowner
+        /// The IoT Hub access policy name. A common value is iothubowner
         /// </summary>
         public string AccessPolicyName { get; set; }
 
         /// <summary>
-        /// The access policy key. Get it from Azure Portal
+        /// The IoT Hub access policy key. Get it from Azure Portal
         /// </summary>
         public string AccessPolicyKey { get; set; }
 
         /// <summary>
-        /// The maximum pool size (default = 1). Recommended is 1 per ~995 devices
+        /// The maximum pool size (default is <seealso cref="ushort.MaxValue"/>)
         /// </summary>
-        public int MaxPoolSize { get; set; } = 1;
+        public int MaxPoolSize { get; set; } = ushort.MaxValue;
+
+        /// <summary>
+        /// Allows or not the usage of shared access policy keys
+        /// If you enable it make sure that access to the API is protected otherwise anyone will be able to impersonate devices
+        /// </summary>
+        public bool SharedAccessPolicyKeyEnabled { get; set; }
 
         /// <summary>
         /// Default device client cache in duration in minutes
