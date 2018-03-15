@@ -4,8 +4,8 @@ mono: none
 dotnet: 2.0.0
 
 install:
-- dotnet restore
+- dotnet restore src/
 
 script:
-- dotnet build
-- dotnet test src/Tests/IoTHubGateway.Server.Tests/IoTHubGateway.Server.Tests.csproj
+- dotnet build src/
+- dotnet test src/
