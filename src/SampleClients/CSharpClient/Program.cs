@@ -12,12 +12,12 @@ namespace CSharpClient
         {
             Console.WriteLine("<PRESS ENTER TO CONTINUE>");
             Console.ReadLine();
-            var hostName = "iotedgetest";
+            var hostName = "";
             var deviceId = "amqp1005";
             var tokenttl = DateTime.UtcNow.AddSeconds(10);
             var sasToken = new SharedAccessSignatureBuilder()
             {
-                Key = "rIN0MnWXSB8VwEGcjFPodSdgqf9AQGJGzTRD8K1pDtQ=",
+                Key = "",
                 Target = $"{hostName}.azure-devices.net/devices/{deviceId}",
                 //TimeToLive = TimeSpan.FromMinutes(20)
                 TimeToLive = TimeSpan.FromSeconds(10)
