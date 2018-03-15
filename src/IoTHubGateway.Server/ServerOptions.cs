@@ -40,8 +40,9 @@ namespace IoTHubGateway.Server
 
         /// <summary>
         /// Default device client cache in duration in minutes
+        /// 60 minutes by default
         /// </summary>
-        public int DefaultDeviceCacheInMinutes = 30;
+        public int DefaultDeviceCacheInMinutes = 60;
 
     }
 }

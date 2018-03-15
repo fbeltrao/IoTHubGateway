@@ -18,7 +18,7 @@ namespace CSharpClient
             {
                 Key = "add-your-device-key-here",
                 Target = $"{hostName}.azure-devices.net/devices/{deviceId}",
-                TimeToLive = TimeSpan.FromMinutes(5)
+                TimeToLive = TimeSpan.FromMinutes(20)
             }
             .ToSignature();
 

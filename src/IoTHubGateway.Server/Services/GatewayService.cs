@@ -93,7 +93,7 @@ namespace IoTHubGateway.Server.Services
                 await newDeviceClient.OpenAsync();
 
                 if (!tokenExpiration.HasValue)
-                    tokenExpiration = DateTime.UtcNow.AddMinutes(30);
+                    tokenExpiration = DateTime.UtcNow.AddMinutes(this.gatewayOptions.DefaultDeviceCacheInMinutes);
                 cacheEntry.SetAbsoluteExpiration(tokenExpiration.Value);
 
                 return newDeviceClient;

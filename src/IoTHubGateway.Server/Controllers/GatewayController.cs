@@ -37,7 +37,7 @@ namespace IoTHubGateway.Server.Controllers
 
             if (!string.IsNullOrEmpty(sasToken))
             {
-                var tokenExpiratinDate = DateTime.UtcNow.AddMinutes(5);
+                var tokenExpiratinDate = DateTime.UtcNow.AddMinutes(20);
 
                 var tokenExpiration = Request.Headers[Constants.SasTokenExpirationHeaderName];
                 if (!string.IsNullOrEmpty(tokenExpiration))
