@@ -1,10 +1,12 @@
 ﻿using IoTHubGateway.Server.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Azure.Devices.Client;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace IoTHubGateway.Server.Controllers
@@ -20,6 +22,22 @@ namespace IoTHubGateway.Server.Controllers
         {
             this.gatewayService = gatewayService;
             this.options = options.Value;
+
+#if DEBUG
+            if (this.options.DirectMethodEnabled && this.options.DirectMethodCallback == null)
+            {
+                this.options.DirectMethodCallback = (methodRequest, userContext) =>
+                {
+                    var deviceId = (string)userContext;
+                    Console.WriteLine($"Device method call: {deviceId}.{methodRequest.Name}({methodRequest.DataAsJson})");
+
+                    var responseBody = "{ succeeded: true }";
+                    MethodResponse methodResponse = new MethodResponse(Encoding.UTF8.GetBytes(responseBody), 200);
+
+                    return Task.FromResult(methodResponse);
+                };
+            }
+#endif
         }
 
         // GET api/values
@@ -37,22 +55,11 @@ namespace IoTHubGateway.Server.Controllers
 
             if (!string.IsNullOrEmpty(sasToken))
             {
-                var tokenExpiratinDate = DateTime.UtcNow.AddMinutes(20);
+                var tokenExpirationDate = ResolveTokenExpiration(sasToken);
+                if (!tokenExpirationDate.HasValue)
+                    tokenExpirationDate = DateTime.UtcNow.AddMinutes(20);
 
-                var tokenExpiration = Request.Headers[Constants.SasTokenExpirationHeaderName];
-                if (!string.IsNullOrEmpty(tokenExpiration))
-                {
-                    if (!long.TryParse(tokenExpiration, out var tokenExpirationEpoch))
-                        return BadRequest(new { error = "Invalid sas_token_expiration" });
-
-                    var givenTokenExpirationDate = epoch.AddSeconds(tokenExpirationEpoch);
-                    if (givenTokenExpirationDate < DateTime.UtcNow)
-                        return BadRequest(new { error = "Provided token already expired" });
-
-                    tokenExpiratinDate = givenTokenExpirationDate;
-
-                }
-                await gatewayService.SendDeviceToCloudMessageByToken(deviceId, payload.ToString(), sasToken, tokenExpiratinDate);
+                await gatewayService.SendDeviceToCloudMessageByToken(deviceId, payload.ToString(), sasToken, tokenExpirationDate.Value);
             }
             else
             {
@@ -62,6 +69,22 @@ namespace IoTHubGateway.Server.Controllers
             }
 
             return Ok();
+        }
+
+        private DateTime? ResolveTokenExpiration(string sasToken)
+        {
+            const string field = "se=";
+            var index = sasToken.LastIndexOf(field);
+            if (index >= 0)
+            {
+                var unixTime = sasToken.Substring(index + field.Length);
+                if (int.TryParse(unixTime, out var unixTimeInt))
+                {
+                    return epoch.AddSeconds(unixTimeInt);
+                }
+            }
+
+            return null;
         }
     }
 }

@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -25,9 +26,11 @@ namespace IoTHubGateway.Server
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddOptions();
-            services.Configure<ServerOptions>(Configuration.GetSection(nameof(ServerOptions)));
-            services.AddSingleton<IGatewayService, GatewayService>();
             services.AddMemoryCache();
+            services.AddSingleton<RegisteredDevices>();
+            services.Configure<ServerOptions>(Configuration.GetSection(nameof(ServerOptions)));
+            services.AddSingleton<IHostedService, CloudToMessageListenerJobHostedService>();
+            services.AddSingleton<IGatewayService, GatewayService>();
             services.AddMvc();
         }
 

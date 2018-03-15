@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Azure.Devices.Client;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -10,7 +11,12 @@ namespace IoTHubGateway.Server
     /// </summary>
     public class ServerOptions
     {
-        public int DeviceOperationTimeoutInMilliseconds { get; set; } =  1000 * 10;
+
+        /// <summary>
+        /// Device operation timeout (in milliseconds)
+        /// Default: 10000 (10 seconds)
+        /// </summary>
+        public int DeviceOperationTimeout { get; set; } =  1000 * 10;
 
         /// <summary>
         /// IoT Hub host name. Something like xxxxx.azure-devices.net
@@ -44,5 +50,14 @@ namespace IoTHubGateway.Server
         /// </summary>
         public int DefaultDeviceCacheInMinutes = 60;
 
+        /// <summary>
+        /// Enable/disables direct method (cloud -> device)
+        /// </summary>
+        public bool DirectMethodEnabled { get; set; } = false;
+
+        /// <summary>
+        /// Gets/sets the callback to handle device direct methods
+        /// </summary>
+        public MethodCallback DirectMethodCallback { get; set; }
     }
 }
