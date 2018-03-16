@@ -5,11 +5,14 @@ using System.Threading.Tasks;
 
 namespace IoTHubGateway.Server.Services
 {
+    /// <summary>
+    /// Maintains a list of registered devices to enabled cloud messages background job to query them
+    /// </summary>
     public class RegisteredDevices
     {
         System.Collections.Concurrent.ConcurrentDictionary<string, string> devices = new System.Collections.Concurrent.ConcurrentDictionary<string, string>();
 
-        internal void RegisterDevice(string deviceId)
+        public void AddDevice(string deviceId)
         {
             devices.AddOrUpdate(deviceId, deviceId, (key, existing) =>
             {
@@ -17,12 +20,12 @@ namespace IoTHubGateway.Server.Services
             });
         }
 
-        internal void DeviceRemoved(object key)
+        public void RemoveDevice(object key)
         {
             devices.Remove(key.ToString(), out var value);
         }
 
-        internal ICollection<string> GetDeviceIdList()
+        public ICollection<string> GetDeviceIdList()
         {
             return this.devices.Keys;
         }

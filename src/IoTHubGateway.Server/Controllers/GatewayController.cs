@@ -1,12 +1,7 @@
 ﻿using IoTHubGateway.Server.Services;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.Devices.Client;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace IoTHubGateway.Server.Controllers
@@ -22,25 +17,14 @@ namespace IoTHubGateway.Server.Controllers
         {
             this.gatewayService = gatewayService;
             this.options = options.Value;
-
-#if DEBUG
-            if (this.options.DirectMethodEnabled && this.options.DirectMethodCallback == null)
-            {
-                this.options.DirectMethodCallback = (methodRequest, userContext) =>
-                {
-                    var deviceId = (string)userContext;
-                    Console.WriteLine($"Device method call: {deviceId}.{methodRequest.Name}({methodRequest.DataAsJson})");
-
-                    var responseBody = "{ succeeded: true }";
-                    MethodResponse methodResponse = new MethodResponse(Encoding.UTF8.GetBytes(responseBody), 200);
-
-                    return Task.FromResult(methodResponse);
-                };
-            }
-#endif
         }
 
-        // GET api/values
+        /// <summary>
+        /// Sends a message for the given device
+        /// </summary>
+        /// <param name="deviceId">Device identifier</param>
+        /// <param name="payload">Payload (JSON format)</param>
+        /// <returns></returns>
         [HttpPost("{deviceId}")]
         public async Task<IActionResult> Send(string deviceId, [FromBody] dynamic payload)
         {
@@ -49,10 +33,8 @@ namespace IoTHubGateway.Server.Controllers
 
             if (payload == null)
                 return BadRequest(new { error = "Missing payload" });
-
             
             var sasToken = this.ControllerContext.HttpContext.Request.Headers[Constants.SasTokenHeaderName].ToString();
-
             if (!string.IsNullOrEmpty(sasToken))
             {
                 var tokenExpirationDate = ResolveTokenExpiration(sasToken);
@@ -71,8 +53,14 @@ namespace IoTHubGateway.Server.Controllers
             return Ok();
         }
 
+        /// <summary>
+        /// Expirations is available as parameter "se" as a unix time in our sample application
+        /// </summary>
+        /// <param name="sasToken"></param>
+        /// <returns></returns>
         private DateTime? ResolveTokenExpiration(string sasToken)
         {
+            // TODO: Implement in more reliable way (regex or another built-in class)
             const string field = "se=";
             var index = sasToken.LastIndexOf(field);
             if (index >= 0)

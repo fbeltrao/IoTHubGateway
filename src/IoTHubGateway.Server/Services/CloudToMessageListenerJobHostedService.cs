@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,23 +14,31 @@ namespace IoTHubGateway.Server.Services
     public class CloudToMessageListenerJobHostedService : IHostedService
     {
         private readonly IMemoryCache cache;
-        private readonly ILogger<CloudToMessageListenerJobHostedService> _logger;
+        private readonly ILogger<CloudToMessageListenerJobHostedService> logger;
         private readonly RegisteredDevices registeredDevices;
+        private readonly ServerOptions serverOptions;
 
-        public CloudToMessageListenerJobHostedService(IMemoryCache cache, ILogger<CloudToMessageListenerJobHostedService> logger, RegisteredDevices registeredDevices)
+        public CloudToMessageListenerJobHostedService(
+            IMemoryCache cache, 
+            ILogger<CloudToMessageListenerJobHostedService> logger, 
+            RegisteredDevices registeredDevices,
+            IOptions<ServerOptions> serverOptions)
         {
             this.cache = cache;
-            this._logger = logger;
+            this.logger = logger;
             this.registeredDevices = registeredDevices;
+            this.serverOptions = serverOptions.Value;
         }
 
 
-        private async Task CheckDeviceMessages()
+        /// <summary>
+        /// Checks for device messages
+        /// </summary>
+        /// <returns></returns>
+        private void CheckDeviceMessages()
         {
-            //Console.WriteLine("Start listening for device messages");
-
             var deviceIdList = this.registeredDevices.GetDeviceIdList();
-            Parallel.ForEach(deviceIdList, new ParallelOptions() { MaxDegreeOfParallelism = 10 }, (deviceId) =>
+            Parallel.ForEach(deviceIdList, new ParallelOptions() { MaxDegreeOfParallelism = serverOptions.CloudMessageParallelism }, (deviceId) =>
             {
                 try
                 {
@@ -38,47 +47,62 @@ namespace IoTHubGateway.Server.Services
                         var message = deviceClient.ReceiveAsync(TimeSpan.FromMilliseconds(1)).GetAwaiter().GetResult();
                         if (message != null)
                         {
-                            Console.WriteLine($"[{DateTime.Now.ToString()}] Message received");
+                            try
+                            {                                
+                                //this.serverOptions.CloudMessageHandler(deviceId, message);
+                                // Console.WriteLine($"[{DateTime.Now.ToString()}] Message received");
 
-                            deviceClient.CompleteAsync(message).GetAwaiter().GetResult();
+                                deviceClient.CompleteAsync(message).GetAwaiter().GetResult();
+                            }
+                            catch (Exception handlingMessageException)
+                            {
+                                logger.LogError(handlingMessageException, $"Error handling message from {deviceId}");
+                            }
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, $"Error receiving message from {deviceId}");
-
+                    logger.LogError(ex, $"Error receiving message from {deviceId}");
                 }
             });
-
-            //Console.WriteLine("Ended listening for device messages");
-
         }
 
-        public async Task StartAsync(CancellationToken stoppingToken)
+        /// <summary>
+        /// Starts job
+        /// </summary>
+        /// <param name="stoppingToken"></param>
+        /// <returns></returns>
+        public Task StartAsync(CancellationToken stoppingToken)
         {
-            _logger.LogDebug($"GracePeriodManagerService is starting.");
+            logger.LogDebug($"{nameof(CloudToMessageListenerJobHostedService)} is starting.");
 
-            stoppingToken.Register(() =>
-                    _logger.LogDebug($" GracePeriod background task is stopping."));
-
-            while (!stoppingToken.IsCancellationRequested)
+            if (this.serverOptions.CloudMessageHandler == null)
             {
-                _logger.LogDebug($"GracePeriod task doing background work.");
+                logger.LogInformation($"{nameof(CloudToMessageListenerJobHostedService)} not executing as no handler was defined in {nameof(ServerOptions)}.{nameof(ServerOptions.CloudMessageHandler)}.");
+            }
+            else
+            {
+                stoppingToken.Register(() => logger.LogDebug($" {nameof(CloudToMessageListenerJobHostedService)} background task is stopping."));
 
-                // This eShopOnContainers method is quering a database table 
-                // and publishing events into the Event Bus (RabbitMS / ServiceBus)
-                await CheckDeviceMessages();
-
-                //await Task.Delay(1000 * 1, stoppingToken);
+                while (!stoppingToken.IsCancellationRequested)
+                {
+                    CheckDeviceMessages();
+                }
             }
 
-            _logger.LogDebug($"GracePeriod background task is stopping.");
+            logger.LogDebug($"{nameof(CloudToMessageListenerJobHostedService)} background task is stopping.");
+
+            return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Ends the job
+        /// </summary>
+        /// <param name="stoppingToken"></param>
+        /// <returns></returns>
         public Task StopAsync(CancellationToken stoppingToken)
         {
-            // Run your graceful clean-up actions
             return Task.CompletedTask;
         }
         

@@ -125,6 +125,8 @@ namespace IoTHubGateway.Server.Services
                     if (this.serverOptions.DirectMethodEnabled)
                         await newDeviceClient.SetMethodDefaultHandlerAsync(this.serverOptions.DirectMethodCallback, deviceId);
 
+                    await newDeviceClient.SetMessageHandler
+
                     if (!tokenExpiration.HasValue)
                         tokenExpiration = DateTime.UtcNow.AddMinutes(this.serverOptions.DefaultDeviceCacheInMinutes);
                     cacheEntry.SetAbsoluteExpiration(tokenExpiration.Value);
@@ -133,7 +135,7 @@ namespace IoTHubGateway.Server.Services
                     this.logger.LogInformation($"Connection to device {deviceId} has been established, valid until {tokenExpiration.Value.ToString()}");
 
 
-                    registeredDevices.RegisterDevice(deviceId);
+                    registeredDevices.AddDevice(deviceId);
 
                     return newDeviceClient;
                 });
@@ -151,7 +153,7 @@ namespace IoTHubGateway.Server.Services
 
         private void CacheEntryRemoved(object key, object value, EvictionReason reason, object state)
         {
-            this.registeredDevices.DeviceRemoved(key);
+            this.registeredDevices.RemoveDevice(key);
         }
     }
 }

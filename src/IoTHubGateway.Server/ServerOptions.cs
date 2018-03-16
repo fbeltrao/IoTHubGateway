@@ -59,5 +59,18 @@ namespace IoTHubGateway.Server
         /// Gets/sets the callback to handle device direct methods
         /// </summary>
         public MethodCallback DirectMethodCallback { get; set; }
+
+        /// <summary>
+        /// Enable/disables cloud messages in the gateway
+        /// Cloud messages are retrieved in a background job
+        /// Default: false / disabled
+        /// </summary>
+        public bool CloudMessagesEnabled { get; set; }
+
+        /// <summary>
+        /// Degree of parallelism used to check for cloud messages
+        /// </summary>
+        public int CloudMessageParallelism { get; set; } = 10;
+        //public Action<string, Message> CloudMessageHandler { get; internal set; }
     }
 }

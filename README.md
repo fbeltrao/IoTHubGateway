@@ -1,5 +1,7 @@
 # Azure IoT Hub AMQP Server Gateway Sample
 
+Travis: [![Travis](https://travis-ci.org/fbeltrao/IoTHubGateway.svg?branch=master)](https://travis-ci.org/fbeltrao/IoTHubGateway)
+
 ## Introduction
 
 The best way to connect any device to IoT Hub when building an IoT solution is to directly connect it using one of the provided [Microsoft Azure IoT Device SDKs](https://github.com/Azure/azure-iot-sdks).
@@ -83,7 +85,7 @@ In the gateway it's possible to listen for this event called by IoT hub. This ca
 
 For details Cloud to Device messages, see ["Send messages from the cloud to your device with IoT Hub"](https://docs.microsoft.com/en-us/azure/iot-hub/iot-hub-csharp-csharp-c2d)
 
-This is something we may look at implementing in the near future but currently we don't support it.
+The support to device messages is based on a background job that loops through the connected devices and check for messages. It is an approach that might not be advised for large device deployments.
 
 ### Device Twins
 
@@ -91,8 +93,13 @@ For details on how Device Twins work, see ["Understand and use device twins in I
 
 Support is not implemented in this gateway sample at the moment.
 
+## Scaling
 
-### Configuration Options
+We tested this solution in a single instance, connecting 20'000 devices, sending and receiving messages. We did not face any problem in our tests. Since we open a device connection and keep in memory you should use affinity if you deploy the application in multiple instances, so that each device always communicates with the same instance.
+
+If you enable cloud messages pay attention to the option "CloudMessageParallelism", as it dictate how fast your deployment will handle cloud messages. Direct methods don't have the same problem as the IoT SDK notifies when a direct method call is received.
+
+## Configuration Options
 
 Customization of the gateway is available through the configuration. The available options are:
 
@@ -107,8 +114,9 @@ Customization of the gateway is available through the configuration. The availab
 |DefaultDeviceCacheInMinutes|Default device client cache in duration in minutes|60 minutes|
 |DirectMethodEnabled|Enable/disables direct method (cloud -> device)|false|
 |DirectMethodCallback|Gets/sets the callback to handle device direct methods|null|
+|CloudMessagesEnabled|Enable/disables cloud messages in the gateway. Cloud messages are retrieved in a background job|false|
+|CloudMessageParallelism|Degree of parallelism used to check for cloud messages|10|
 
-
-**Contributors**
+## Contributors
 
 Sascha Corti, Ronnie Saurenmann, Francisco Beltrao
