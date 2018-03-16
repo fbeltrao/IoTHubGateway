@@ -8,4 +8,4 @@ install:
 
 script:
 - dotnet build src/
-- dotnet test src/
+- dotnet test src/Tests/IoTHubGateway.Server.Tests

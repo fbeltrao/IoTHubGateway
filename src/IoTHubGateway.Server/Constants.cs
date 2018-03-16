@@ -12,10 +12,5 @@ namespace IoTHubGateway.Server
         /// </summary>
         public const string SasTokenHeaderName = "sas_token";
 
-        /// <summary>
-        /// Name of request header containing the device sas token expiration date in unix time
-        /// </summary>
-        public const string SasTokenExpirationHeaderName = "sas_token_expiration";
-        
     }
 }

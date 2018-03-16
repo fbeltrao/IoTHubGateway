@@ -37,7 +37,7 @@ namespace IoTHubGateway.Server.Tests
                 SharedAccessPolicyKeyEnabled = false,
             };
 
-            var target = new GatewayController(gatewayService.Object, Options.Create<ServerOptions>(options));
+            var target = new GatewayController(gatewayService.Object, options);
             target.ControllerContext.HttpContext = new DefaultHttpContext();
 
             var result = await target.Send("device-1", new { payload = 1 });
@@ -54,7 +54,7 @@ namespace IoTHubGateway.Server.Tests
                 SharedAccessPolicyKeyEnabled = false,
             };
 
-            var target = new GatewayController(gatewayService.Object, Options.Create<ServerOptions>(options));
+            var target = new GatewayController(gatewayService.Object, options);
             target.ControllerContext.HttpContext = new DefaultHttpContext();
             target.ControllerContext.HttpContext.Request.Headers[Constants.SasTokenHeaderName] = "a-token";
 
@@ -75,7 +75,7 @@ namespace IoTHubGateway.Server.Tests
                 SharedAccessPolicyKeyEnabled = true,
             };
 
-            var target = new GatewayController(gatewayService.Object, Options.Create<ServerOptions>(options));
+            var target = new GatewayController(gatewayService.Object, options);
             target.ControllerContext.HttpContext = new DefaultHttpContext();
 
             var result = await target.Send("device-1", new { payload = 1 });
@@ -96,7 +96,7 @@ namespace IoTHubGateway.Server.Tests
                 SharedAccessPolicyKeyEnabled = true,
             };
 
-            var target = new GatewayController(gatewayService.Object, Options.Create<ServerOptions>(options));
+            var target = new GatewayController(gatewayService.Object, options);
             target.ControllerContext.HttpContext = new DefaultHttpContext();
             target.ControllerContext.HttpContext.Request.Headers.Add(Constants.SasTokenHeaderName, "a-token");
 
@@ -106,8 +106,12 @@ namespace IoTHubGateway.Server.Tests
         }
 
 
+        /// <summary>
+        /// Gateway accepts expired tokens as it needs to take into account grace period / clock disparities
+        /// </summary>
+        /// <returns></returns>
         [Fact]
-        public async Task Send_WithDeviceToken_And_TokenExpirationDateInPast_Returns_BadRequest()
+        public async Task Send_WithDeviceToken_And_TokenExpirationDateInPast_Returns_Ok()
         {
             var gatewayService = new Mock<IGatewayService>();
             var options = new ServerOptions()
@@ -115,13 +119,12 @@ namespace IoTHubGateway.Server.Tests
                 SharedAccessPolicyKeyEnabled = false,
             };
 
-            var target = new GatewayController(gatewayService.Object, Options.Create<ServerOptions>(options));
+            var target = new GatewayController(gatewayService.Object, options);
             target.ControllerContext.HttpContext = new DefaultHttpContext();
-            target.ControllerContext.HttpContext.Request.Headers.Add(Constants.SasTokenHeaderName, "a-token");
-            target.ControllerContext.HttpContext.Request.Headers.Add(Constants.SasTokenExpirationHeaderName, ((long)DateTime.UtcNow.AddDays(-1).Subtract(epoch).TotalSeconds).ToString());
+            target.ControllerContext.HttpContext.Request.Headers.Add(Constants.SasTokenHeaderName, $"a-token&se={((long)DateTime.UtcNow.AddDays(-1).Subtract(epoch).TotalSeconds).ToString()}");
 
             var result = await target.Send("device-1", new { payload = 1 });
-            Assert.IsType<BadRequestObjectResult>(result);
+            Assert.IsType<OkResult>(result);
         }
 
 
@@ -141,10 +144,9 @@ namespace IoTHubGateway.Server.Tests
                 SharedAccessPolicyKeyEnabled = false,
             };
 
-            var target = new GatewayController(gatewayService.Object, Options.Create<ServerOptions>(options));
+            var target = new GatewayController(gatewayService.Object, options);
             target.ControllerContext.HttpContext = new DefaultHttpContext();
-            target.ControllerContext.HttpContext.Request.Headers.Add(Constants.SasTokenHeaderName, "a-token");
-            target.ControllerContext.HttpContext.Request.Headers.Add(Constants.SasTokenExpirationHeaderName, ((long)tokenExpirationDate.Subtract(epoch).TotalSeconds).ToString());
+            target.ControllerContext.HttpContext.Request.Headers.Add(Constants.SasTokenHeaderName, $"a-token&se={((long)tokenExpirationDate.Subtract(epoch).TotalSeconds).ToString()}");
 
             var result = await target.Send("device-1", new { payload = 1 });
             Assert.IsType<OkResult>(result);

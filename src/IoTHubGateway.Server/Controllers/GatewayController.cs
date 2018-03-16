@@ -1,10 +1,7 @@
 ﻿using IoTHubGateway.Server.Services;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace IoTHubGateway.Server.Controllers
@@ -16,13 +13,18 @@ namespace IoTHubGateway.Server.Controllers
         private readonly ServerOptions options;
         private static readonly DateTime epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        public GatewayController(IGatewayService gatewayService, IOptions<ServerOptions> options)
+        public GatewayController(IGatewayService gatewayService, ServerOptions options)
         {
             this.gatewayService = gatewayService;
-            this.options = options.Value;
+            this.options = options;
         }
 
-        // GET api/values
+        /// <summary>
+        /// Sends a message for the given device
+        /// </summary>
+        /// <param name="deviceId">Device identifier</param>
+        /// <param name="payload">Payload (JSON format)</param>
+        /// <returns></returns>
         [HttpPost("{deviceId}")]
         public async Task<IActionResult> Send(string deviceId, [FromBody] dynamic payload)
         {
@@ -31,28 +33,15 @@ namespace IoTHubGateway.Server.Controllers
 
             if (payload == null)
                 return BadRequest(new { error = "Missing payload" });
-
             
             var sasToken = this.ControllerContext.HttpContext.Request.Headers[Constants.SasTokenHeaderName].ToString();
-
             if (!string.IsNullOrEmpty(sasToken))
             {
-                var tokenExpiratinDate = DateTime.UtcNow.AddMinutes(20);
+                var tokenExpirationDate = ResolveTokenExpiration(sasToken);
+                if (!tokenExpirationDate.HasValue)
+                    tokenExpirationDate = DateTime.UtcNow.AddMinutes(20);
 
-                var tokenExpiration = Request.Headers[Constants.SasTokenExpirationHeaderName];
-                if (!string.IsNullOrEmpty(tokenExpiration))
-                {
-                    if (!long.TryParse(tokenExpiration, out var tokenExpirationEpoch))
-                        return BadRequest(new { error = "Invalid sas_token_expiration" });
-
-                    var givenTokenExpirationDate = epoch.AddSeconds(tokenExpirationEpoch);
-                    if (givenTokenExpirationDate < DateTime.UtcNow)
-                        return BadRequest(new { error = "Provided token already expired" });
-
-                    tokenExpiratinDate = givenTokenExpirationDate;
-
-                }
-                await gatewayService.SendDeviceToCloudMessageByToken(deviceId, payload.ToString(), sasToken, tokenExpiratinDate);
+                await gatewayService.SendDeviceToCloudMessageByToken(deviceId, payload.ToString(), sasToken, tokenExpirationDate.Value);
             }
             else
             {
@@ -62,6 +51,28 @@ namespace IoTHubGateway.Server.Controllers
             }
 
             return Ok();
+        }
+
+        /// <summary>
+        /// Expirations is available as parameter "se" as a unix time in our sample application
+        /// </summary>
+        /// <param name="sasToken"></param>
+        /// <returns></returns>
+        private DateTime? ResolveTokenExpiration(string sasToken)
+        {
+            // TODO: Implement in more reliable way (regex or another built-in class)
+            const string field = "se=";
+            var index = sasToken.LastIndexOf(field);
+            if (index >= 0)
+            {
+                var unixTime = sasToken.Substring(index + field.Length);
+                if (int.TryParse(unixTime, out var unixTimeInt))
+                {
+                    return epoch.AddSeconds(unixTimeInt);
+                }
+            }
+
+            return null;
         }
     }
 }

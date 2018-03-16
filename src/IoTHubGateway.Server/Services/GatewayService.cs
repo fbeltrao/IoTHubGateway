@@ -1,6 +1,7 @@
 
 using Microsoft.Azure.Devices.Client;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
@@ -17,8 +18,10 @@ namespace IoTHubGateway.Server.Services
     /// </summary>
     public class GatewayService : IGatewayService
     {
-        private readonly ServerOptions gatewayOptions;
+        private readonly ServerOptions serverOptions;
         private readonly IMemoryCache cache;
+        private readonly ILogger<GatewayService> logger;
+        RegisteredDevices registeredDevices;
 
         /// <summary>
         /// Sliding expiration for each device client connection
@@ -29,78 +32,127 @@ namespace IoTHubGateway.Server.Services
         /// <summary>
         /// Constructor
         /// </summary>
-        public GatewayService(IOptions<ServerOptions> serverOptions, IMemoryCache cache)
+        public GatewayService(ServerOptions serverOptions, IMemoryCache cache, ILogger<GatewayService> logger, RegisteredDevices registeredDevices)
         {
-            this.gatewayOptions = serverOptions.Value;
+            this.serverOptions = serverOptions;
             this.cache = cache;
-            this.DeviceConnectionCacheSlidingExpiration = TimeSpan.FromMinutes(serverOptions.Value.DefaultDeviceCacheInMinutes);
+            this.logger = logger;
+            this.registeredDevices = registeredDevices;
+            this.DeviceConnectionCacheSlidingExpiration = TimeSpan.FromMinutes(serverOptions.DefaultDeviceCacheInMinutes);
         }
 
         public async Task SendDeviceToCloudMessageByToken(string deviceId, string payload, string sasToken, DateTime tokenExpiration)
         {
             var deviceClient = await ResolveDeviceClient(deviceId, sasToken, tokenExpiration);
+            if (deviceClient == null)
+                throw new DeviceConnectionException($"Failed to connect to device {deviceId}");
 
-            await deviceClient.SendEventAsync(new Message(Encoding.UTF8.GetBytes(payload))
+            try
             {
-                ContentEncoding = "utf-8",
-                ContentType = "application/json"
-            });
+                await deviceClient.SendEventAsync(new Message(Encoding.UTF8.GetBytes(payload))
+                {
+                    ContentEncoding = "utf-8",
+                    ContentType = "application/json"
+                });
+
+                this.logger.LogInformation($"Event sent to device {deviceId} using device token. Payload: {payload}");
+            }
+            catch (Exception ex)
+            {
+                this.logger.LogError(ex, $"Could not send device message to IoT Hub (device: {deviceId})");
+                throw;
+            }
+
         }
 
         public async Task SendDeviceToCloudMessageBySharedAccess(string deviceId, string payload)
         {
             var deviceClient = await ResolveDeviceClient(deviceId);
 
-            await deviceClient.SendEventAsync(new Message(Encoding.UTF8.GetBytes(payload))
+            try
+            { 
+                await deviceClient.SendEventAsync(new Message(Encoding.UTF8.GetBytes(payload))
+                {
+                    ContentEncoding = "utf-8",
+                    ContentType = "application/json"
+                });
+
+                this.logger.LogInformation($"Event sent to device {deviceId} using shared access. Payload: {payload}");
+            }
+            catch (Exception ex)
             {
-                ContentEncoding = "utf-8",
-                ContentType = "application/json"
-            });
+                this.logger.LogError(ex, $"Could not send device message to IoT Hub (device: {deviceId})");
+                throw;
+            }
+
         }
 
         private async Task<DeviceClient> ResolveDeviceClient(string deviceId, string sasToken = null, DateTime? tokenExpiration = null)
         {
-            var deviceClient = await cache.GetOrCreateAsync<DeviceClient>(deviceId, async(cacheEntry) =>
+            try
             {
-                IAuthenticationMethod auth = null;
-                if (string.IsNullOrEmpty(sasToken))
+                var deviceClient = await cache.GetOrCreateAsync<DeviceClient>(deviceId, async (cacheEntry) =>
                 {
-                    auth = new DeviceAuthenticationWithSharedAccessPolicyKey(deviceId, this.gatewayOptions.AccessPolicyName, this.gatewayOptions.AccessPolicyKey);
-                }
-                else
-                {
-                    auth = new DeviceAuthenticationWithToken(deviceId, sasToken);
-                }
-                
-                var newDeviceClient = DeviceClient.Create(
-                   this.gatewayOptions.IoTHubHostName,
-                    auth,
-                    new ITransportSettings[]
+                    IAuthenticationMethod auth = null;
+                    if (string.IsNullOrEmpty(sasToken))
                     {
-                        new AmqpTransportSettings(TransportType.Amqp_Tcp_Only)
+                        auth = new DeviceAuthenticationWithSharedAccessPolicyKey(deviceId, this.serverOptions.AccessPolicyName, this.serverOptions.AccessPolicyKey);
+                    }
+                    else
+                    {
+                        auth = new DeviceAuthenticationWithToken(deviceId, sasToken);
+                    }
+
+                    var newDeviceClient = DeviceClient.Create(
+                       this.serverOptions.IoTHubHostName,
+                        auth,
+                        new ITransportSettings[]
                         {
-                            AmqpConnectionPoolSettings = new AmqpConnectionPoolSettings()
+                            new AmqpTransportSettings(TransportType.Amqp_Tcp_Only)
                             {
-                                Pooling = true,
-                                MaxPoolSize = (uint)this.gatewayOptions.MaxPoolSize,
+                                AmqpConnectionPoolSettings = new AmqpConnectionPoolSettings()
+                                {
+                                    Pooling = true,
+                                    MaxPoolSize = (uint)this.serverOptions.MaxPoolSize,
+                                }
                             }
                         }
-                    }
-                );
+                    );
 
-                newDeviceClient.OperationTimeoutInMilliseconds = (uint)this.gatewayOptions.DeviceOperationTimeoutInMilliseconds;
+                    newDeviceClient.OperationTimeoutInMilliseconds = (uint)this.serverOptions.DeviceOperationTimeout;
 
-                await newDeviceClient.OpenAsync();
+                    await newDeviceClient.OpenAsync();
 
-                if (!tokenExpiration.HasValue)
-                    tokenExpiration = DateTime.UtcNow.AddMinutes(this.gatewayOptions.DefaultDeviceCacheInMinutes);
-                cacheEntry.SetAbsoluteExpiration(tokenExpiration.Value);
+                    if (this.serverOptions.DirectMethodEnabled)
+                        await newDeviceClient.SetMethodDefaultHandlerAsync(this.serverOptions.DirectMethodCallback, deviceId);
 
-                return newDeviceClient;
-            });
+                    if (!tokenExpiration.HasValue)
+                        tokenExpiration = DateTime.UtcNow.AddMinutes(this.serverOptions.DefaultDeviceCacheInMinutes);
+                    cacheEntry.SetAbsoluteExpiration(tokenExpiration.Value);
+                    cacheEntry.RegisterPostEvictionCallback(this.CacheEntryRemoved, deviceId);
+
+                    this.logger.LogInformation($"Connection to device {deviceId} has been established, valid until {tokenExpiration.Value.ToString()}");
 
 
-            return deviceClient;
+                    registeredDevices.AddDevice(deviceId);
+
+                    return newDeviceClient;
+                });
+
+
+                return deviceClient;
+            }
+            catch (Exception ex)
+            {
+                this.logger.LogError(ex, $"Could not connect device {deviceId}");
+            }
+
+            return null;
+        }
+
+        private void CacheEntryRemoved(object key, object value, EvictionReason reason, object state)
+        {
+            this.registeredDevices.RemoveDevice(key);
         }
     }
 }
