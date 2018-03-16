@@ -14,7 +14,7 @@ namespace CSharpClient
             Console.ReadLine();
             var hostName = "<enter-iothub-name>";
             var deviceId = "<enter-device-id>";
-            var tokenttl = DateTime.UtcNow.AddSeconds(10);
+
             var sasToken = new SharedAccessSignatureBuilder()
             {
                 Key = "",

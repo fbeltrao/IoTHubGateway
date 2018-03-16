@@ -98,7 +98,7 @@ Support is not implemented in this gateway sample at the moment.
 
 This solution was tested in a single instance, connecting 20'000 devices, sending and receiving messages. No problems were found. Since we open a device connection and keep in memory you should use affinity if you deploy the application in multiple instances, so that each device always communicates with the same instance.
 
-If you enable cloud messages pay attention to the option "CloudMessageParallelism", as it dictate how fast your deployment will handle cloud messages. Direct methods don't have the same problem as the IoT SDK notifies when a direct method call is received.
+If you enable cloud to device messages pay attention to the option "CloudMessageParallelism", as it dictate how fast your deployment will handle cloud messages. Direct methods don't have the same problem as the IoT SDK notifies when a direct method call is received.
 
 ## Configuration Options
 
