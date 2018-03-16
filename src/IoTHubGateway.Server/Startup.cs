@@ -36,20 +36,29 @@ namespace IoTHubGateway.Server
             var options = new ServerOptions();
             Configuration.GetSection(nameof(ServerOptions)).Bind(options);
             services.AddSingleton<ServerOptions>(options);
-            services.Configure<ServerOptions>(Configuration.GetSection(nameof(ServerOptions)));
+            //services.Configure<ServerOptions>(Configuration.GetSection(nameof(ServerOptions)));
 
             if (options.CloudMessagesEnabled)
             {
-                services.AddSingleton<IHostedService, CloudToMessageListenerJobHostedService>();
+     //           services.AddSingleton<IHostedService, CloudToMessageListenerJobHostedService>();
             }
 
 #if DEBUG
+            SetupDebugListeners(options);            
+#endif
+
+            services.AddSingleton<IGatewayService, GatewayService>();
+            services.AddMvc();
+        }
+
+        private void SetupDebugListeners(ServerOptions options)
+        {
             if (options.DirectMethodEnabled && options.DirectMethodCallback == null)
             {
                 options.DirectMethodCallback = (methodRequest, userContext) =>
                 {
                     var deviceId = (string)userContext;
-                    Console.WriteLine($"Device method call: {deviceId}.{methodRequest.Name}({methodRequest.DataAsJson})");
+                    Console.WriteLine($"[{DateTime.Now.ToString()}] Direct method for {deviceId}.{methodRequest.Name}({methodRequest.DataAsJson}) received.");
 
                     var responseBody = "{ succeeded: true }";
                     MethodResponse methodResponse = new MethodResponse(Encoding.UTF8.GetBytes(responseBody), 200);
@@ -57,10 +66,17 @@ namespace IoTHubGateway.Server
                     return Task.FromResult(methodResponse);
                 };
             }
-#endif
 
-            services.AddSingleton<IGatewayService, GatewayService>();
-            services.AddMvc();
+            if (options.CloudMessagesEnabled && options.MessageHandlerCallback == null)
+            {
+                options.MessageHandlerCallback = (message, userContext) =>
+                {
+                    Console.WriteLine($"[{DateTime.Now.ToString()}] Message for device {userContext.ToString()} received.");
+         
+                    return Task.FromResult(MessageResponse.Completed);
+                };
+
+            }
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

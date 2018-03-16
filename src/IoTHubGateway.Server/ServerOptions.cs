@@ -71,6 +71,13 @@ namespace IoTHubGateway.Server
         /// Degree of parallelism used to check for cloud messages
         /// </summary>
         public int CloudMessageParallelism { get; set; } = 10;
-        //public Action<string, Message> CloudMessageHandler { get; internal set; }
+
+        /// <summary>
+        /// Gets/sets the cloud messages callback
+        /// </summary>
+        /// <param name="message"></param>
+        /// <param name="userContext"></param>
+        /// <returns></returns>
+        public MessageHandler MessageHandlerCallback { get; set; }
     }
 }

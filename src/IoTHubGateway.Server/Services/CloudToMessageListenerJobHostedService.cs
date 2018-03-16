@@ -77,19 +77,19 @@ namespace IoTHubGateway.Server.Services
         {
             logger.LogDebug($"{nameof(CloudToMessageListenerJobHostedService)} is starting.");
 
-            if (this.serverOptions.CloudMessageHandler == null)
-            {
-                logger.LogInformation($"{nameof(CloudToMessageListenerJobHostedService)} not executing as no handler was defined in {nameof(ServerOptions)}.{nameof(ServerOptions.CloudMessageHandler)}.");
-            }
-            else
-            {
+            //if (this.serverOptions.MCloudMessageHandler == null)
+            //{
+            //    logger.LogInformation($"{nameof(CloudToMessageListenerJobHostedService)} not executing as no handler was defined in {nameof(ServerOptions)}.{nameof(ServerOptions.CloudMessageHandler)}.");
+            //}
+            //else
+            //{
                 stoppingToken.Register(() => logger.LogDebug($" {nameof(CloudToMessageListenerJobHostedService)} background task is stopping."));
 
                 while (!stoppingToken.IsCancellationRequested)
                 {
                     CheckDeviceMessages();
                 }
-            }
+            //}
 
             logger.LogDebug($"{nameof(CloudToMessageListenerJobHostedService)} background task is stopping.");
 

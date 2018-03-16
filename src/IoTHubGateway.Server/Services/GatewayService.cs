@@ -32,13 +32,13 @@ namespace IoTHubGateway.Server.Services
         /// <summary>
         /// Constructor
         /// </summary>
-        public GatewayService(IOptions<ServerOptions> serverOptions, IMemoryCache cache, ILogger<GatewayService> logger, RegisteredDevices registeredDevices)
+        public GatewayService(ServerOptions serverOptions, IMemoryCache cache, ILogger<GatewayService> logger, RegisteredDevices registeredDevices)
         {
-            this.serverOptions = serverOptions.Value;
+            this.serverOptions = serverOptions;
             this.cache = cache;
             this.logger = logger;
             this.registeredDevices = registeredDevices;
-            this.DeviceConnectionCacheSlidingExpiration = TimeSpan.FromMinutes(serverOptions.Value.DefaultDeviceCacheInMinutes);
+            this.DeviceConnectionCacheSlidingExpiration = TimeSpan.FromMinutes(serverOptions.DefaultDeviceCacheInMinutes);
         }
 
         public async Task SendDeviceToCloudMessageByToken(string deviceId, string payload, string sasToken, DateTime tokenExpiration)
@@ -125,7 +125,8 @@ namespace IoTHubGateway.Server.Services
                     if (this.serverOptions.DirectMethodEnabled)
                         await newDeviceClient.SetMethodDefaultHandlerAsync(this.serverOptions.DirectMethodCallback, deviceId);
 
-                    await newDeviceClient.SetMessageHandler
+                    if (this.serverOptions.CloudMessagesEnabled)
+                        await newDeviceClient.SetMessageHandlerAsync(this.serverOptions.MessageHandlerCallback, deviceId);
 
                     if (!tokenExpiration.HasValue)
                         tokenExpiration = DateTime.UtcNow.AddMinutes(this.serverOptions.DefaultDeviceCacheInMinutes);
