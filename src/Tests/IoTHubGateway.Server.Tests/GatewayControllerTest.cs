@@ -37,7 +37,7 @@ namespace IoTHubGateway.Server.Tests
                 SharedAccessPolicyKeyEnabled = false,
             };
 
-            var target = new GatewayController(gatewayService.Object, Options.Create<ServerOptions>(options));
+            var target = new GatewayController(gatewayService.Object, options);
             target.ControllerContext.HttpContext = new DefaultHttpContext();
 
             var result = await target.Send("device-1", new { payload = 1 });
@@ -54,7 +54,7 @@ namespace IoTHubGateway.Server.Tests
                 SharedAccessPolicyKeyEnabled = false,
             };
 
-            var target = new GatewayController(gatewayService.Object, Options.Create<ServerOptions>(options));
+            var target = new GatewayController(gatewayService.Object, options);
             target.ControllerContext.HttpContext = new DefaultHttpContext();
             target.ControllerContext.HttpContext.Request.Headers[Constants.SasTokenHeaderName] = "a-token";
 
@@ -75,7 +75,7 @@ namespace IoTHubGateway.Server.Tests
                 SharedAccessPolicyKeyEnabled = true,
             };
 
-            var target = new GatewayController(gatewayService.Object, Options.Create<ServerOptions>(options));
+            var target = new GatewayController(gatewayService.Object, options);
             target.ControllerContext.HttpContext = new DefaultHttpContext();
 
             var result = await target.Send("device-1", new { payload = 1 });
@@ -96,7 +96,7 @@ namespace IoTHubGateway.Server.Tests
                 SharedAccessPolicyKeyEnabled = true,
             };
 
-            var target = new GatewayController(gatewayService.Object, Options.Create<ServerOptions>(options));
+            var target = new GatewayController(gatewayService.Object, options);
             target.ControllerContext.HttpContext = new DefaultHttpContext();
             target.ControllerContext.HttpContext.Request.Headers.Add(Constants.SasTokenHeaderName, "a-token");
 
@@ -119,7 +119,7 @@ namespace IoTHubGateway.Server.Tests
                 SharedAccessPolicyKeyEnabled = false,
             };
 
-            var target = new GatewayController(gatewayService.Object, Options.Create<ServerOptions>(options));
+            var target = new GatewayController(gatewayService.Object, options);
             target.ControllerContext.HttpContext = new DefaultHttpContext();
             target.ControllerContext.HttpContext.Request.Headers.Add(Constants.SasTokenHeaderName, $"a-token&se={((long)DateTime.UtcNow.AddDays(-1).Subtract(epoch).TotalSeconds).ToString()}");
 
@@ -144,7 +144,7 @@ namespace IoTHubGateway.Server.Tests
                 SharedAccessPolicyKeyEnabled = false,
             };
 
-            var target = new GatewayController(gatewayService.Object, Options.Create<ServerOptions>(options));
+            var target = new GatewayController(gatewayService.Object, options);
             target.ControllerContext.HttpContext = new DefaultHttpContext();
             target.ControllerContext.HttpContext.Request.Headers.Add(Constants.SasTokenHeaderName, $"a-token&se={((long)tokenExpirationDate.Subtract(epoch).TotalSeconds).ToString()}");
 
