@@ -22,12 +22,12 @@ namespace IoTHubGateway.Server.Services
             IMemoryCache cache, 
             ILogger<CloudToMessageListenerJobHostedService> logger, 
             RegisteredDevices registeredDevices,
-            IOptions<ServerOptions> serverOptions)
+            ServerOptions serverOptions)
         {
             this.cache = cache;
             this.logger = logger;
             this.registeredDevices = registeredDevices;
-            this.serverOptions = serverOptions.Value;
+            this.serverOptions = serverOptions;
         }
 
 
@@ -49,8 +49,7 @@ namespace IoTHubGateway.Server.Services
                         {
                             try
                             {                                
-                                //this.serverOptions.CloudMessageHandler(deviceId, message);
-                                // Console.WriteLine($"[{DateTime.Now.ToString()}] Message received");
+                                this.serverOptions.CloudMessageCallback(deviceId, message);                                
 
                                 deviceClient.CompleteAsync(message).GetAwaiter().GetResult();
                             }
@@ -77,9 +76,9 @@ namespace IoTHubGateway.Server.Services
         {
             logger.LogDebug($"{nameof(CloudToMessageListenerJobHostedService)} is starting.");
 
-            if (this.serverOptions.CloudMessageHandler == null)
+            if (this.serverOptions.CloudMessageCallback == null)
             {
-                logger.LogInformation($"{nameof(CloudToMessageListenerJobHostedService)} not executing as no handler was defined in {nameof(ServerOptions)}.{nameof(ServerOptions.CloudMessageHandler)}.");
+                logger.LogInformation($"{nameof(CloudToMessageListenerJobHostedService)} not executing as no handler was defined in {nameof(ServerOptions)}.{nameof(ServerOptions.CloudMessageCallback)}.");
             }
             else
             {

@@ -51,7 +51,7 @@ var newDeviceClient = DeviceClient.Create(
         }
     }
 );
-```                
+```
 
 This forces every device client to share the same connection. By default, 995 devices are supported per connection. The SDK will add additional connections to the pool automatically if needed.
 
@@ -85,7 +85,8 @@ In the gateway it's possible to listen for this event called by IoT hub. This ca
 
 For details Cloud to Device messages, see ["Send messages from the cloud to your device with IoT Hub"](https://docs.microsoft.com/en-us/azure/iot-hub/iot-hub-csharp-csharp-c2d)
 
-The support to device messages is based on a background job that loops through the connected devices and check for messages. It is an approach that might not be advised for large device deployments.
+We are evaluating the IoT SDK [DeviceClient.SetMessageHandlerAsync](https://docs.microsoft.com/en-us/dotnet/api/microsoft.azure.devices.client.deviceclient.setmessagehandlerasync?view=azure-dotnet) for this purposes (currently in preview) and will update the repository once we find a working version.
+For now, the support to device messages is based on a background job that loops through the connected devices and check for messages. It is an approach that might not be advised for large device deployments.
 
 ### Device Twins
 
@@ -95,7 +96,7 @@ Support is not implemented in this gateway sample at the moment.
 
 ## Scaling
 
-We tested this solution in a single instance, connecting 20'000 devices, sending and receiving messages. We did not face any problem in our tests. Since we open a device connection and keep in memory you should use affinity if you deploy the application in multiple instances, so that each device always communicates with the same instance.
+This solution was tested in a single instance, connecting 20'000 devices, sending and receiving messages. No problems were found. Since we open a device connection and keep in memory you should use affinity if you deploy the application in multiple instances, so that each device always communicates with the same instance.
 
 If you enable cloud messages pay attention to the option "CloudMessageParallelism", as it dictate how fast your deployment will handle cloud messages. Direct methods don't have the same problem as the IoT SDK notifies when a direct method call is received.
 
@@ -116,7 +117,7 @@ Customization of the gateway is available through the configuration. The availab
 |DirectMethodCallback|Gets/sets the callback to handle device direct methods|null|
 |CloudMessagesEnabled|Enable/disables cloud messages in the gateway. Cloud messages are retrieved in a background job|false|
 |CloudMessageParallelism|Degree of parallelism used to check for cloud messages|10|
-
+|CloudMessageCallback|Gets/sets the callback to handle cloud messages|null|
 ## Contributors
 
 Sascha Corti, Ronnie Saurenmann, Francisco Beltrao

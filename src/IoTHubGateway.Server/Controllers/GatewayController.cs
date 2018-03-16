@@ -13,10 +13,10 @@ namespace IoTHubGateway.Server.Controllers
         private readonly ServerOptions options;
         private static readonly DateTime epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        public GatewayController(IGatewayService gatewayService, IOptions<ServerOptions> options)
+        public GatewayController(IGatewayService gatewayService, ServerOptions options)
         {
             this.gatewayService = gatewayService;
-            this.options = options.Value;
+            this.options = options;
         }
 
         /// <summary>
