@@ -85,8 +85,7 @@ In the gateway it's possible to listen for this event called by IoT hub. This ca
 
 For details Cloud to Device messages, see ["Send messages from the cloud to your device with IoT Hub"](https://docs.microsoft.com/en-us/azure/iot-hub/iot-hub-csharp-csharp-c2d)
 
-We are evaluating the IoT SDK [DeviceClient.SetMessageHandlerAsync](https://docs.microsoft.com/en-us/dotnet/api/microsoft.azure.devices.client.deviceclient.setmessagehandlerasync?view=azure-dotnet) for this purposes (currently in preview) and will update the repository once we find a working version.
-For now, the support to device messages is based on a background job that loops through the connected devices and check for messages. It is an approach that might not be advised for large device deployments.
+We have implemented a basic Cloud to Device message handling, but this implementation is not optimal as the more devices that are connected the slower it will become. We have run a quick test with 5’000 DeviceClient instances.  It is an approach that might not be advised for large device deployments.
 
 ### Device Twins
 
