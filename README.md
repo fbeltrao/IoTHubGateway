@@ -65,7 +65,7 @@ In our example, we support two authentication mechanisms. In both cases, Iot Hub
 
 ### Authentication using a Shared Access Policy Key
 
-Using the authentication method [DeviceAuthenticationWithSharedAccessPolicyKey](https://docs.microsoft.com/en-us/dotnet/api/microsoft.azure.devices.client.deviceauthenticationwithsharedaccesspolicykey?view=azure-dotnet) A single connection string allows the gateway to forward messages from all cleints to IoT hub without individual authentication for each of the devices. In this case, the gateway authenticates in behalf of the devices but does not impersonate them. This is the simplest solution, but it's not secure. 
+Using the authentication method [DeviceAuthenticationWithSharedAccessPolicyKey](https://docs.microsoft.com/en-us/dotnet/api/microsoft.azure.devices.client.deviceauthenticationwithsharedaccesspolicykey?view=azure-dotnet) A single connection string allows the gateway to forward messages from all clients to IoT hub without individual authentication for each of the devices. In this case, the gateway authenticates in behalf of the devices but does not impersonate them. This is the simplest solution, but it's not secure. 
 
 You need to have a custom authentication mechanism in place between the devices and the gateway in this scenario to ensure security. This is useful in the scenario of a LoRaWAN network server, where an authenticaiton mechanism is already in place between the LoRa devices and their LoRaWAN gateway or server.
 
