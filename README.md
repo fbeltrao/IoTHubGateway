@@ -10,11 +10,13 @@ Azure IoT Hub supports multiple protocols and offers extensive developer integra
 
 In some cases however, for example when you need to do protocol translation or your client devices are simply not capable to connect directly to IoT hub, you need a gateway to bridge the gap.
 
-The best way to implement this gateway scenario is to use IoT Edge as outlined in these [use cases and patterns](https://docs.microsoft.com/en-us/azure/iot-edge/iot-edge-as-gateway).
+If you just need to do protocol translation the right approach is to create a gateway as documented here: https://docs.microsoft.com/en-us/azure/iot-hub/iot-hub-protocol-gateway 
 
-There is another scenario which we want to discuss here and which is not covered in the article above, where you need to implement a gateway at the server level and not at the Edge or the gateway may not support IoT Edge due to processing power or memory constraints or due to the lack of container support.
+If you need a gateway on the edge then the best way to implement this gateway scenario is to use IoT Edge as outlined in these [use cases and patterns](https://docs.microsoft.com/en-us/azure/iot-edge/iot-edge-as-gateway).
 
-One of these cases could be a migration scenario where  you are unable to change the code running on the devices. In this case you need to implement an intermediary gateway that the devices can connect to without knowing about IoT hub.
+There is another scenario which we want to discuss here and which is not covered in the articles above, where you need to implement an application gateway at the server level and not at the Edge or the gateway may not support IoT Edge due to processing power or memory constraints or due to the lack of container support.
+
+One of these cases could be a migration scenario where you are unable to change the code running on the devices. In this case you need to implement an intermediary gateway that the devices can connect to without knowing about IoT hub.
 
 ![Migration Scenario](./images/migration-scenario.png "Migration Scenario")
 
@@ -31,6 +33,8 @@ The code provided in this sample is not production ready and was built for demon
 In this sample, we created an ASP.NET Core solution to serve as our gateway.
 
 It is crucial that a gateway solution should be able to multiplex device connections instead of creating single connections to IoT Hub per device. IoT Hub supports multiplexing only over HTTP and AMQP. For our sample gateway, we decided to use AMQP for its efficiency. The [Azure IoT Hub SDK for .NET](https://github.com/Azure/azure-iot-sdk-csharp) already implements support for connection pooling. Support for the other language SDKs are planned.
+
+An alternative solution is to implement the same pattern without the use of the SDK and working directly at the AMQP level, here you can find a Node.js implementation: https://github.com/vjrantal/azure-iot-multiplexing-gateway  
 
 ## Flow
 
