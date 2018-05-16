@@ -3,6 +3,7 @@ using Microsoft.Azure.Devices.Client;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Polly;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -173,7 +174,13 @@ namespace IoTHubGateway.Server.Services
                     await newDeviceClient.OpenAsync();
 
                     if (this.serverOptions.DirectMethodEnabled)
-                        await newDeviceClient.SetMethodDefaultHandlerAsync(this.serverOptions.DirectMethodCallback, deviceId);
+                    {
+                        // when connecting with multiple tenants this method might fail, use polly to retry
+                        var retryPolicy = Policy
+                            .Handle<Exception>()
+                            .WaitAndRetryAsync(4, (attempt) => TimeSpan.FromSeconds(Math.Pow(2, attempt)));
+                        await retryPolicy.ExecuteAsync(async () => await newDeviceClient.SetMethodDefaultHandlerAsync(this.serverOptions.DirectMethodCallback, deviceId));
+                    }
 
                     if (!tokenExpiration.HasValue)
                         tokenExpiration = DateTime.UtcNow.AddMinutes(this.serverOptions.DefaultDeviceCacheInMinutes);

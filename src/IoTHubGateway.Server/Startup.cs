@@ -74,8 +74,8 @@ namespace IoTHubGateway.Server
             {
                 options.CloudMessageCallback = (iothubname, deviceId, message) =>
                 {
-                    if (deviceId.EndsWith("1"))
-                        throw new Exception("callback failed");
+                    //if (deviceId.EndsWith("1"))
+                    //    throw new Exception("callback failed");
                     Console.WriteLine($"[{DateTime.Now.ToString()}] Cloud message for {iothubname ?? "default"}/{deviceId} from received");
                 };
             }
