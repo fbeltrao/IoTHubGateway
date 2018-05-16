@@ -45,6 +45,12 @@ namespace IoTHubGateway.Server
         public bool SharedAccessPolicyKeyEnabled { get; set; }
 
         /// <summary>
+        /// Allows or not the usage of the device connection string being passed in the request header
+        /// Callers will need to know the destination IoT Hub connection string for the device
+        /// </summary>
+        public bool DeviceConnectionStringEnabled { get; set; }
+
+        /// <summary>
         /// Default device client cache in duration in minutes
         /// 60 minutes by default
         /// </summary>
@@ -76,6 +82,7 @@ namespace IoTHubGateway.Server
         /// <summary>
         /// Gets/sets the callback to handle cloud messages
         /// </summary>
-        public Action<string, Message> CloudMessageCallback { get; set; }
+        public Action<string, string, Message> CloudMessageCallback { get; set; }
+        
     }
 }

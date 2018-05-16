@@ -12,5 +12,10 @@ namespace IoTHubGateway.Server
         /// </summary>
         public const string SasTokenHeaderName = "sas_token";
 
+        /// <summary>
+        /// Name of request header containing the device connection string
+        /// </summary>
+        public const string ConnectionStringHeaderName = "connection_string";
+
     }
 }

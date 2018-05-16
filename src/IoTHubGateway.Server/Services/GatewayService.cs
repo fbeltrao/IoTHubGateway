@@ -41,12 +41,40 @@ namespace IoTHubGateway.Server.Services
             this.DeviceConnectionCacheSlidingExpiration = TimeSpan.FromMinutes(serverOptions.DefaultDeviceCacheInMinutes);
         }
 
+
+        /// <inheritdoc />
+        public async Task SendDeviceToCloudMessageByConnectionString(string connectionString, string deviceId, string payload)
+        {
+            var deviceClient = await ResolveDeviceClient(connectionString: connectionString, deviceId: deviceId);
+            if (deviceClient == null)
+                throw new DeviceConnectionException($"Failed to connect to device {deviceId}");
+
+            await InternalSendDeviceMessage(deviceClient, deviceId, payload);
+        }
+
+        /// <inheritdoc />
         public async Task SendDeviceToCloudMessageByToken(string deviceId, string payload, string sasToken, DateTime tokenExpiration)
         {
             var deviceClient = await ResolveDeviceClient(deviceId, sasToken, tokenExpiration);
             if (deviceClient == null)
                 throw new DeviceConnectionException($"Failed to connect to device {deviceId}");
 
+            await InternalSendDeviceMessage(deviceClient, deviceId, payload);
+
+        }
+
+        /// <inheritdoc />
+        public async Task SendDeviceToCloudMessageBySharedAccess(string deviceId, string payload)
+        {
+            var deviceClient = await ResolveDeviceClient(deviceId: deviceId);
+            if (deviceClient == null)
+                throw new DeviceConnectionException($"Failed to connect to device {deviceId}");
+
+            await InternalSendDeviceMessage(deviceClient, deviceId, payload);
+        }
+
+        async Task InternalSendDeviceMessage(ConnectedDevice deviceClient, string deviceId, string payload)
+        {
             try
             {
                 await deviceClient.SendEventAsync(new Message(Encoding.UTF8.GetBytes(payload))
@@ -62,62 +90,83 @@ namespace IoTHubGateway.Server.Services
                 this.logger.LogError(ex, $"Could not send device message to IoT Hub (device: {deviceId})");
                 throw;
             }
-
         }
 
-        public async Task SendDeviceToCloudMessageBySharedAccess(string deviceId, string payload)
-        {
-            var deviceClient = await ResolveDeviceClient(deviceId);
+        /// <summary>
+        /// Resolves a <see cref="ConnectedDevice"/> by looking the cache and then creating a new one
+        /// </summary>
+        /// <param name="deviceId"></param>
+        /// <param name="sasToken"></param>
+        /// <param name="tokenExpiration"></param>
+        /// <returns></returns>
+        private async Task<ConnectedDevice> ResolveDeviceClient(string deviceId, string sasToken = null, DateTime? tokenExpiration = null) => await ResolveDeviceClient(null, deviceId, sasToken, tokenExpiration);
 
-            try
-            { 
-                await deviceClient.SendEventAsync(new Message(Encoding.UTF8.GetBytes(payload))
-                {
-                    ContentEncoding = "utf-8",
-                    ContentType = "application/json"
-                });
-
-                this.logger.LogInformation($"Event sent to device {deviceId} using shared access. Payload: {payload}");
-            }
-            catch (Exception ex)
-            {
-                this.logger.LogError(ex, $"Could not send device message to IoT Hub (device: {deviceId})");
-                throw;
-            }
-
-        }
-
-        private async Task<DeviceClient> ResolveDeviceClient(string deviceId, string sasToken = null, DateTime? tokenExpiration = null)
+        /// <summary>
+        /// Resolves a <see cref="ConnectedDevice"/> by looking the cache and then creating a new one
+        /// </summary>
+        /// <param name="connectionString"></param>
+        /// <param name="deviceId"></param>
+        /// <param name="sasToken"></param>
+        /// <param name="tokenExpiration"></param>
+        /// <returns></returns>
+        private async Task<ConnectedDevice> ResolveDeviceClient(string connectionString, string deviceId, string sasToken = null, DateTime? tokenExpiration = null)
         {
             try
             {
-                var deviceClient = await cache.GetOrCreateAsync<DeviceClient>(deviceId, async (cacheEntry) =>
+                
+                var iotHubName = string.Empty;
+                if (!string.IsNullOrEmpty(connectionString))
+                    iotHubName = Utils.ResolveIoTHubHostName(connectionString);
+                
+                var uniqueDeviceId = Utils.UniqueDeviceID(iotHubName, deviceId);
+                var deviceClient = await cache.GetOrCreateAsync<ConnectedDevice>(uniqueDeviceId, async (cacheEntry) =>
                 {
-                    IAuthenticationMethod auth = null;
-                    if (string.IsNullOrEmpty(sasToken))
+                    DeviceClient newDeviceClient = null;
+                    if (string.IsNullOrEmpty(connectionString))
                     {
-                        auth = new DeviceAuthenticationWithSharedAccessPolicyKey(deviceId, this.serverOptions.AccessPolicyName, this.serverOptions.AccessPolicyKey);
+                        IAuthenticationMethod auth = null;
+                        if (string.IsNullOrEmpty(sasToken))
+                        {
+                            auth = new DeviceAuthenticationWithSharedAccessPolicyKey(deviceId, this.serverOptions.AccessPolicyName, this.serverOptions.AccessPolicyKey);
+                        }
+                        else
+                        {
+                            auth = new DeviceAuthenticationWithToken(deviceId, sasToken);
+                        }
+
+                        newDeviceClient = DeviceClient.Create(
+                            this.serverOptions.IoTHubHostName,
+                            auth,
+                            new ITransportSettings[]
+                            {
+                                new AmqpTransportSettings(TransportType.Amqp_Tcp_Only)
+                                {
+                                    AmqpConnectionPoolSettings = new AmqpConnectionPoolSettings()
+                                    {
+                                        Pooling = true,
+                                        MaxPoolSize = (uint)this.serverOptions.MaxPoolSize,
+                                    }
+                                }
+                            }
+                        );
                     }
                     else
                     {
-                        auth = new DeviceAuthenticationWithToken(deviceId, sasToken);
-                    }
-
-                    var newDeviceClient = DeviceClient.Create(
-                       this.serverOptions.IoTHubHostName,
-                        auth,
-                        new ITransportSettings[]
-                        {
-                            new AmqpTransportSettings(TransportType.Amqp_Tcp_Only)
+                        newDeviceClient = DeviceClient.CreateFromConnectionString(
+                            connectionString, 
+                            deviceId,
+                            new ITransportSettings[]
                             {
-                                AmqpConnectionPoolSettings = new AmqpConnectionPoolSettings()
+                                new AmqpTransportSettings(TransportType.Amqp_Tcp_Only)
                                 {
-                                    Pooling = true,
-                                    MaxPoolSize = (uint)this.serverOptions.MaxPoolSize,
+                                    AmqpConnectionPoolSettings = new AmqpConnectionPoolSettings()
+                                    {
+                                        Pooling = true,
+                                        MaxPoolSize = (uint)this.serverOptions.MaxPoolSize,
+                                    }
                                 }
-                            }
-                        }
-                    );
+                            });
+                    }
 
                     newDeviceClient.OperationTimeoutInMilliseconds = (uint)this.serverOptions.DeviceOperationTimeout;
 
@@ -131,12 +180,12 @@ namespace IoTHubGateway.Server.Services
                     cacheEntry.SetAbsoluteExpiration(tokenExpiration.Value);
                     cacheEntry.RegisterPostEvictionCallback(this.CacheEntryRemoved, deviceId);
 
-                    this.logger.LogInformation($"Connection to device {deviceId} has been established, valid until {tokenExpiration.Value.ToString()}");
+                    this.logger.LogInformation($"Connection to device {deviceId} in {iotHubName ?? "predefined iot hub"} has been established, valid until {tokenExpiration.Value.ToString()}");
 
+                    
+                    registeredDevices.AddDevice(uniqueDeviceId);
 
-                    registeredDevices.AddDevice(deviceId);
-
-                    return newDeviceClient;
+                    return new ConnectedDevice(iotHubName, deviceId, newDeviceClient);
                 });
 
 

@@ -6,6 +6,10 @@ using System.Threading.Tasks;
 
 namespace IoTHubGateway.Server.Controllers
 {
+    /// <summary>
+    /// Gateway controller
+    /// Receives device to cloud message communications
+    /// </summary>
     [Route("api")]
     public class GatewayController : Controller
     {
@@ -13,6 +17,11 @@ namespace IoTHubGateway.Server.Controllers
         private readonly ServerOptions options;
         private static readonly DateTime epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="gatewayService"></param>
+        /// <param name="options"></param>
         public GatewayController(IGatewayService gatewayService, ServerOptions options)
         {
             this.gatewayService = gatewayService;
@@ -45,9 +54,21 @@ namespace IoTHubGateway.Server.Controllers
             }
             else
             {
-                if (!this.options.SharedAccessPolicyKeyEnabled)
-                    return BadRequest(new { error = "Shared access is not enabled" });
-                await gatewayService.SendDeviceToCloudMessageBySharedAccess(deviceId, payload.ToString());
+                var connectionString = this.ControllerContext.HttpContext.Request.Headers[Constants.ConnectionStringHeaderName].ToString();
+                if (!string.IsNullOrEmpty(connectionString))
+                {
+                    if (!this.options.DeviceConnectionStringEnabled)
+                        return BadRequest(new { error = "Device connection string is not enabled" });
+
+                    await gatewayService.SendDeviceToCloudMessageByConnectionString(connectionString, deviceId, payload.ToString());
+                }
+                else
+                {
+                    if (!this.options.SharedAccessPolicyKeyEnabled)
+                        return BadRequest(new { error = "Shared access is not enabled" });
+
+                    await gatewayService.SendDeviceToCloudMessageBySharedAccess(deviceId, payload.ToString());
+                }
             }
 
             return Ok();

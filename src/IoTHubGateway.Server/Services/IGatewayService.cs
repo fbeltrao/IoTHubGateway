@@ -27,5 +27,15 @@ namespace IoTHubGateway.Server.Services
         /// <param name="payload"></param>
         /// <returns></returns>
         Task SendDeviceToCloudMessageBySharedAccess(string deviceId, string payload);
+
+
+        /// <summary>
+        /// Sends device to cloud message by passing the connection string and the device identifier
+        /// For scenarios where the gateway does not 
+        /// </summary>
+        /// <param name="connectionString"></param>
+        /// <param name="payload"></param>
+        /// <returns></returns>
+        Task SendDeviceToCloudMessageByConnectionString(string connectionString, string deviceId, string payload);
     }
 }

@@ -11,6 +11,9 @@ using System.Threading.Tasks;
 
 namespace IoTHubGateway.Server.Services
 {
+    /// <summary>
+    /// Background job listening for cloud messages to <see cref="ConnectedDevice"/>
+    /// </summary>
     public class CloudToMessageListenerJobHostedService : IHostedService
     {
         private readonly IMemoryCache cache;
@@ -18,6 +21,13 @@ namespace IoTHubGateway.Server.Services
         private readonly RegisteredDevices registeredDevices;
         private readonly ServerOptions serverOptions;
 
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="cache"></param>
+        /// <param name="logger"></param>
+        /// <param name="registeredDevices"></param>
+        /// <param name="serverOptions"></param>
         public CloudToMessageListenerJobHostedService(
             IMemoryCache cache, 
             ILogger<CloudToMessageListenerJobHostedService> logger, 
@@ -35,34 +45,27 @@ namespace IoTHubGateway.Server.Services
         /// Checks for device messages
         /// </summary>
         /// <returns></returns>
-        private void CheckDeviceMessages()
+        private void CheckDeviceMessages(CancellationToken stoppingToken)
         {
             var deviceIdList = this.registeredDevices.GetDeviceIdList();
             Parallel.ForEach(deviceIdList, new ParallelOptions() { MaxDegreeOfParallelism = serverOptions.CloudMessageParallelism }, (deviceId) =>
             {
-                try
+                if (!stoppingToken.IsCancellationRequested)
                 {
-                    if (this.cache.TryGetValue<DeviceClient>(deviceId, out var deviceClient))
+                    if (this.cache.TryGetValue<ConnectedDevice>(deviceId, out var connectedDevice))
                     {
-                        var message = deviceClient.ReceiveAsync(TimeSpan.FromMilliseconds(1)).GetAwaiter().GetResult();
-                        if (message != null)
+                        try
                         {
-                            try
-                            {                                
-                                this.serverOptions.CloudMessageCallback(deviceId, message);                                
-
-                                deviceClient.CompleteAsync(message).GetAwaiter().GetResult();
-                            }
-                            catch (Exception handlingMessageException)
-                            {
-                                logger.LogError(handlingMessageException, $"Error handling message from {deviceId}");
-                            }
+                            connectedDevice
+                                .ReceiveAndForwardCloudMessage(TimeSpan.FromMilliseconds(1), this.serverOptions.CloudMessageCallback)
+                                .GetAwaiter()
+                                .GetResult();
+                        }
+                        catch (Exception handlingMessageException)
+                        {
+                            logger.LogError(handlingMessageException, $"Error handling message from {deviceId}");
                         }
                     }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, $"Error receiving message from {deviceId}");
                 }
             });
         }
@@ -86,7 +89,7 @@ namespace IoTHubGateway.Server.Services
 
                 while (!stoppingToken.IsCancellationRequested)
                 {
-                    CheckDeviceMessages();
+                    CheckDeviceMessages(stoppingToken);
                 }
             }
 
